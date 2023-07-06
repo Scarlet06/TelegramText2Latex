@@ -4,6 +4,10 @@ from re import findall as refindall,compile as recompile
 from json import load
 from os.path import exists
 
+from Commands import Commands
+commands = Commands()
+del Commands
+
 api_id:int
 api_hash:str
 with open('.env','rb') as env:
@@ -25,7 +29,7 @@ if not exists('sub.json'):
 with open('sub.json','r',encoding='utf-8') as f:
     SUB = load(f)
 
-if not exists('symbols.json'):
+if not exists('super.json'):
     import __get_super
     del __get_super
 with open('super.json','r',encoding='utf-8') as f:
@@ -33,13 +37,12 @@ with open('super.json','r',encoding='utf-8') as f:
 
 del f, exists
 
-math_check = recompile(r'\$(?:.*)\$')
 math_ambient = recompile(r'\$(?:[^\$]*)\$')
 math_sub = recompile(r'_(?:\{.*\}|.)')
 math_sup = recompile(r'\^(?:\{.*\}|.)')
 
-@app.on_message(filters.me & (filters.text | filters.caption) & filters.regex(math_check))
-async def math(client,message:Message):
+@app.on_message(filters.me & (filters.text | filters.caption) & filters.regex(recompile(r'\$(?:.*)\$')))
+async def math(client:Client,message:Message):
     m = (message.text if message.text else message.caption)
 
     math_ambient.findall(m)
@@ -93,5 +96,47 @@ async def math(client,message:Message):
             m = m.replace(result,result.strip('$'),1)
 
     await message.edit_text(m)
+
+@app.on_message(filters.me & filters.text & filters.reply & filters.command('add'))
+async def add(client:Client,message:Message):
+    if message.reply_to_message is None:
+        return await message.reply_text('remember to replay a message to make it work',True)
+    
+    elif len(message.command)==1:
+        return await message.reply_text('add a way to recognise the text')
+    
+    commands[message.text.split(maxsplit=1)[1]] = message.chat.id,message.reply_to_message_id
+
+    await message.reply_text('command added successfully')
+
+@app.on_message(filters.me & filters.text & filters.command('del'))
+async def delete(client:Client,message:Message):
+    if len(message.command)==1:
+        return await message.reply_text('add the command you want to delete')
+    
+    m = message.text.split(maxsplit=1)[1]
+    if m in commands:
+        del commands[m]
+        return await message.reply_text('command removed successfully')
+    await message.reply_text('command nver added')
+
+@app.on_message(filters.me & filters.text & filters.command('list'))
+async def listed(client:Client,message:Message):
+    if commands:
+        await message.reply_text("\n".join(commands.keys()))
+
+async def find(flt, client:Client, query:Message):
+    m = (query.text if query.text else query.caption)
+    return m in commands
+
+@app.on_message(filters.me & (filters.text | filters.caption) & filters.create(find))
+async def call(client:Client, message:Message):
+    try:
+        await client.forward_messages(message.chat.id,*commands[message.text])
+    except:
+        del commands[message.text]
+        await message.reply_text('message not found, command removed')
+
+
 
 app.run()
