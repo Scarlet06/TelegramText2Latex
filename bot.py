@@ -1,6 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from re import findall as refindall,compile as recompile
+from re import compile as recompile
 from json import load
 from os.path import exists
 
@@ -43,7 +43,8 @@ math_sup = recompile(r'\^(?:\{.*\}|.)')
 
 @app.on_message(filters.me & (filters.text | filters.caption) & filters.regex(recompile(r'\$(?:.*)\$')))
 async def math(client:Client,message:Message):
-    m = (message.text if message.text else message.caption)
+
+    m = message.text if message.text else message.caption
 
     math_ambient.findall(m)
     for result in math_ambient.findall(m):
@@ -105,7 +106,7 @@ async def add(client:Client,message:Message):
     elif len(message.command)==1:
         return await message.reply_text('add a way to recognise the text')
     
-    commands[message.text.split(maxsplit=1)[1]] = message.chat.id,message.reply_to_message_id
+    commands[message.text.split(maxsplit=1)[1].lower()] = message.chat.id,message.reply_to_message_id
 
     await message.reply_text('command added successfully')
 
@@ -126,17 +127,21 @@ async def listed(client:Client,message:Message):
         await message.reply_text("\n".join(commands.keys()))
 
 async def find(flt, client:Client, query:Message):
-    m = (query.text if query.text else query.caption)
-    return m in commands
+    return (query.text if query.text else query.caption).lower() in commands
 
 @app.on_message(filters.me & (filters.text | filters.caption) & filters.create(find))
 async def call(client:Client, message:Message):
+
+    if message.chat.type.value == message.chat.type.BOT.value:
+        return
+
+    m = (message.text if message.text else message.caption).lower()
     try:
-        await client.forward_messages(message.chat.id,*commands[message.text])
+        await message.delete()
+        await client.copy_message(message.chat.id,*commands[m])
+        # await client.forward_messages(message.chat.id,*commands[m])
     except:
-        del commands[message.text]
-        await message.reply_text('message not found, command removed')
-
-
+        del commands[m]
+        await message.reply_text(f'message not found, command {m} removed')
 
 app.run()
