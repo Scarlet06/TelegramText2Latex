@@ -10,5 +10,6 @@ table = soup.findAll('table',{'class':'table table-condensed'})[-1].find('tbody'
 
 sym = {row.contents[i].text:row.contents[i+1].text for row in table for i in range(0,len(row.contents),2)}
 sym[r'\varphi'] = "\u03c6"
+sym[r'\inf'] = '\u221e'
 with open('symbols.json','w',encoding='utf-8') as f:
     dump(sym,f,indent=2)
