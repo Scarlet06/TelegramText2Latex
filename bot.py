@@ -166,13 +166,16 @@ async def call(client:Client, message:Message):
         return
 
     m = (message.text if message.text else message.caption).lower()
+    replay_id = None
+    if message.reply_to_message:
+        replay_id = message.reply_to_message.id
     try:
         await message.delete()
-        await client.copy_message(message.chat.id,*commands[m])
+        await client.copy_message(message.chat.id,*commands[m],reply_to_message_id=replay_id)
         # await client.forward_messages(message.chat.id,*commands[m])
     except:
         del commands[m]
-        await message.reply_text(f'message not found, command {m} removed')
+        await message.reply_text(f'message not found, command {m} removed',reply_to_message_id=replay_id)
 
 print('start')
 app.run()
