@@ -130,6 +130,14 @@ async def latex(client:Client,message:Message):
             else:
                 sup_min = sup_max = end
 
+        if '\\' in current:
+            for c in KEY_SYMBOLS:
+                if c.startswith('\\') and c in current:
+                    current = current.replace(c,SYMBOLS[c])
+        for c in KEY_SYMBOLS:
+            if (not c.startswith('\\')) and c in current:
+                current = current.replace(c,SYMBOLS[c])
+
         t = end - len(m)
         m = m.replace(m[start:end],current,1)
         t += len(m)
