@@ -43,65 +43,96 @@ with open('super.json','r',encoding='utf-8') as f:
 del exists
 
 math_ambient = recompile(r'\$(?:[^\$]+)\$')
-math_sub = recompile(r'_(?:\{.*\}|.)')
-math_sup = recompile(r'\^(?:\{.*\}|.)')
+math_sub = recompile(r'_(?:\{[^_^]+\}|[^{])')
+math_sup = recompile(r'\^(?:\{[^_^]+\}|[^{])')
    
 
 @app.on_message(filters.me & (filters.text | filters.caption) & filters.regex(recompile(r'\$(?:.*)\$')))
-async def math(client:Client,message:Message):
+async def latex(client:Client,message:Message):
 
     m = message.text if message.text else message.caption
+    start = t = 0
+    while start<len(m):
 
-    math_ambient.findall(m)
-    for result in math_ambient.findall(m):
+        for result in math_ambient.finditer(m,t):
+            start,end = result.regs[0]
+            break
+        else:
+            break
+        current = m[start:end].strip('$')
 
-        try:
+        for sub_findet in math_sub.finditer(current):
+            sub_min, sub_max = sub_findet.regs[0]
+            break
+        else:
+            sub_min = sub_max = end
+        for sup_findet in math_sup.finditer(current):
+            sup_min, sup_max = sup_findet.regs[0]
+            break
+        else:
+            sup_min = sup_max = end
 
-            answer = result.strip('$')
+        while (sub_min<end) or (sup_min<end):
+            if (sub_min < sup_min and sup_max < sub_max) or (sup_max <= sub_min):
 
-            #searching subscript
-            for f_sub in math_sub.findall(answer):
-                if f_sub.endswith('}'):
-                    t_sub = f_sub[2:-1]
+                actual = current[sup_min:sup_max]
+
+                if actual.endswith('}'):
+                    actual = actual[2:-1]
                 else:
-                    t_sub = f_sub[1:]
-                if '\\' in t_sub:
-                    for c in KEY_SUB:
-                        if c.startswith('\\') and c in t_sub:
-                            t_sub = t_sub.replace(c,SUB[c])
-                for c in KEY_SUB:
-                    if (not c.startswith('\\')) and c in t_sub:
-                        t_sub = t_sub.replace(c,SUB[c])
-                answer = answer.replace(f_sub,t_sub,1)
+                    actual = actual[1:]
 
-            #searching superscript
-            for f_sup in math_sup.findall(answer):
-                if f_sup.endswith('}'):
-                    t_sup = f_sup[2:-1]
-                else:
-                    t_sup = f_sup[1:]
-                if '\\' in t_sup:
+                if '\\' in actual:
                     for c in KEY_SUP:
-                        if c.startswith('\\') and c in t_sup:
-                            t_sup = t_sup.replace(c,SUP[c])
+                        if c.startswith('\\') and c in actual:
+                            actual = actual.replace(c,SUP[c])
                 for c in KEY_SUP:
-                    if (not c.startswith('\\')) and c in t_sup:
-                        t_sup = t_sup.replace(c,SUP[c])
-                answer = answer.replace(f_sup,t_sup,1)
+                    if (not c.startswith('\\')) and c in actual:
+                        actual = actual.replace(c,SUP[c])
+                
+                tt = sup_max - len(current)
+                current = current.replace(current[sup_min:sup_max],actual,1)
+                tt+=len(current)
+            
+            elif (sup_min < sub_min and sub_max < sup_max) or (sub_max <= sup_min):
 
-            if '\\' in answer:
-                for c in KEY_SYMBOLS:
-                    if c.startswith('\\') and c in answer:
-                        answer = answer.replace(c,SYMBOLS[c])
-            for c in KEY_SYMBOLS:
-                if not c.startswith('\\') and c in answer:
-                    answer = answer.replace(c,SYMBOLS[c])
+                actual = current[sub_min:sub_max]
 
-            m = m.replace(result,answer,1)
+                if actual.endswith('}'):
+                    actual = actual[2:-1]
+                else:
+                    actual = actual[1:]
 
-        except:
-            m = m.replace(result,result.strip('$'),1)
+                if '\\' in actual:
+                    for c in KEY_SUB:
+                        if c.startswith('\\') and c in actual:
+                            actual = actual.replace(c,SUB[c])
+                for c in KEY_SUB:
+                    if (not c.startswith('\\')) and c in actual:
+                        actual = actual.replace(c,SUB[c])
 
+                tt = sub_max - len(current)
+                current = current.replace(current[sub_min:sub_max],actual,1)
+                tt+=len(current)
+            
+            else:
+                break
+
+            for sub_findet in math_sub.finditer(current,tt):
+                sub_min, sub_max = sub_findet.regs[0]
+                break
+            else:
+                sub_min = sub_max = end
+            
+            for sup_findet in math_sup.finditer(current,tt):
+                sup_min, sup_max = sup_findet.regs[0]
+                break
+            else:
+                sup_min = sup_max = end
+
+        t = end - len(m)
+        m = m.replace(m[start:end],current,1)
+        t += len(m)
     await message.edit_text(m)
 
 @app.on_message(filters.me & filters.text & filters.reply & filters.command('add'))
