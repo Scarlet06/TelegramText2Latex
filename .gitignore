@@ -6,4 +6,5 @@ sub*
 super*
 symbols*
 Magic*
-commands.json
+*commands*
+mybot.py
