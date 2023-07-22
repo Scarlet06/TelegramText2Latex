@@ -2,9 +2,9 @@ __pycache__/
 .env
 .venv
 test*
-sub*
-super*
-symbols*
-Magic*
-*commands*
+
+*.json
+*.session*
+
+commands*
 mybot.py
